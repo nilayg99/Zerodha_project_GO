@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -17,7 +18,9 @@ var current_date = time.Now().Format("020106")
 var yesterday_date = time.Now().AddDate(0, 0, -1).Format("020106")
 var current_time = time.Now().Format("15:04:05")
 var file_Link_format = ("https://www.bseindia.com/download/BhavCopy/Equity/EQ" + yesterday_date + "_CSV.ZIP")
-var file_name = ("EQ" + yesterday_date + "_CSV.ZIP")
+var Zip_file_name = ("EQ" + yesterday_date + "_CSV.ZIP")
+
+// var CSV_file_name = ("EQ" + yesterday_date + ".CSV")
 var BSE_file_path = "D:/Project/Project_New/Zerodha_project/Zerodha_project_GO/BSE_File_Saved"
 
 /*
@@ -38,8 +41,8 @@ var BSE_file_path = "D:/Project/Project_New/Zerodha_project/Zerodha_project_GO/B
 }
 */
 // file_exist checks if the file exists at the given path.
-func file_exist(file_name string) bool {
-	_, err := os.Stat(file_name)
+func file_exist(Zip_file_name string) bool {
+	_, err := os.Stat(Zip_file_name)
 	if os.IsNotExist(err) {
 		return false
 	}
@@ -64,12 +67,23 @@ func URL_status_check() {
 	}
 
 }
+func Zip_extractor() {
+	Zip_extractor := "D:/Project/Project_New/Zerodha_project/Zerodha_project_GO/Zip_extractor.py"
+	cmd := exec.Command("python", Zip_extractor)
+	err := cmd.Start()
+	if err != nil {
+		fmt.Println("Error running new script:", err)
+		return
+	}
+	cmd.Wait()
+
+}
 
 func download_file() {
-	full_file_path := filepath.Join(BSE_file_path, file_name)
+	full_file_path := filepath.Join(BSE_file_path, Zip_file_name)
 	if file_exist(full_file_path) {
 		fmt.Println("File already exists.")
-		return
+		Zip_extractor()
 	}
 	URL_status_check()
 	resp, err := grab.Get(BSE_file_path, file_Link_format)
@@ -80,7 +94,9 @@ func download_file() {
 
 	fmt.Println("Download saved to", resp.Filename)
 }
+
 func main() {
 	download_file()
+	//Zip_extractor()
 
 }
