@@ -14,89 +14,91 @@ import (
 	"github.com/cavaliergopher/grab/v3"
 )
 
-var current_date = time.Now().Format("020106")
-var yesterday_date = time.Now().AddDate(0, 0, -1).Format("020106")
-var current_time = time.Now().Format("15:04:05")
-var file_Link_format = ("https://www.bseindia.com/download/BhavCopy/Equity/EQ" + yesterday_date + "_CSV.ZIP")
-var Zip_file_name = ("EQ" + yesterday_date + "_CSV.ZIP")
+var (
+	currentDate    = time.Now().Format("020106")
+	yesterdayDate  = time.Now().AddDate(0, 0, -1).Format("020106")
+	fileLinkFormat = "https://www.bseindia.com/download/BhavCopy/Equity/EQ" + yesterdayDate + "_CSV.ZIP"
+	zipFileName    = "EQ" + yesterdayDate + "_CSV.ZIP"
+	bseFilePath    = "D:/Project/Project_New/Zerodha_project/Zerodha_project_GO/BSE_File_Saved"
+)
 
-// var CSV_file_name = ("EQ" + yesterday_date + ".CSV")
-var BSE_file_path = "D:/Project/Project_New/Zerodha_project/Zerodha_project_GO/BSE_File_Saved"
-
-/*
-	func time_check() {
-		var current_time_check = current_time
-		if current_time_check == "" {
-			log.Fatal("Error in time.")
-
-		} else {
-			if current_time != "00.00.00" {
-				var current_time string
-				var timeLeft = time.Until(current_time)
-
-			}
-
-		}
-
+// fileExists checks if the file exists at the given path.
+func fileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return !os.IsNotExist(err)
 }
-*/
-// file_exist checks if the file exists at the given path.
-func file_exist(Zip_file_name string) bool {
-	_, err := os.Stat(Zip_file_name)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return err == nil
-}
-func URL_status_check() {
-	resp, err := http.Get(file_Link_format)
+
+// checkURLStatus checks the status of the URL.
+func checkURLStatus() {
+	resp, err := http.Get(fileLinkFormat)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer resp.Body.Close()
 
-	status_code := resp.StatusCode
-	statusStr := strconv.Itoa(status_code)
+	statusCode := resp.StatusCode
+	statusStr := strconv.Itoa(statusCode)
 	if strings.HasPrefix(statusStr, "4") {
-		log.Print("Status Code : ", statusStr)
+		log.Print("Status Code: ", statusStr)
 		return
-
-	} else {
-		fmt.Println(status_code, ":", file_Link_format)
-		log.Fatal("unable to connect the link : ", file_Link_format)
-
 	}
-
+	fmt.Println(statusCode, ":", fileLinkFormat)
+	log.Fatal("Unable to connect to the link: ", fileLinkFormat)
 }
-func Zip_extractor() {
-	Zip_extractor := "D:/Project/Project_New/Zerodha_project/Zerodha_project_GO/Zip_extractor.py"
-	cmd := exec.Command("python", Zip_extractor)
-	err := cmd.Start()
+
+// extractZIP calls the Python script to extract the ZIP file.
+func extractZIP() {
+	zipExtractor := "D:/Project/Project_New/Zerodha_project/Zerodha_project_GO/Zip_extractor.py"
+	cmd := exec.Command("python", zipExtractor)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Println("Error running new script:", err)
+		fmt.Println("Error running the script:", err)
+		fmt.Println("Output:", string(output))
 		return
 	}
-	cmd.Wait()
-
+	fmt.Println("ZIP extraction output:", string(output))
 }
 
-func download_file() {
-	full_file_path := filepath.Join(BSE_file_path, Zip_file_name)
-	if file_exist(full_file_path) {
+// downloadFile downloads the ZIP file if it doesn't already exist.
+func downloadFile() {
+	fullFilePath := filepath.Join(bseFilePath, zipFileName)
+	if fileExists(fullFilePath) {
 		fmt.Println("File already exists.")
-		Zip_extractor()
+		extractZIP()
+		return
 	}
-	URL_status_check()
-	resp, err := grab.Get(BSE_file_path, file_Link_format)
 
+	checkURLStatus()
+
+	resp, err := grab.Get(bseFilePath, fileLinkFormat)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println("Download saved to", resp.Filename)
+	extractZIP()
+}
+
+// timeCheck calls the Python script to check the time.
+func timeCheck() {
+	timeCheckScript := "D:/Project/Project_New/Zerodha_project/Zerodha_project_GO/Time.py"
+	cmd := exec.Command("python", timeCheckScript)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println("Error running the script:", err)
+		fmt.Println("Output:", string(output))
+		return
+	}
+
+	result := strings.TrimSpace(string(output))
+
+	if result == "BSE closed no data found !" {
+		fmt.Println("No Data found!")
+	} else {
+		downloadFile()
+	}
 }
 
 func main() {
-	download_file()
-	//Zip_extractor()
-
+	timeCheck()
 }
